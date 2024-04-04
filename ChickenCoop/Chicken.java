@@ -114,6 +114,8 @@ public class Chicken extends Critter {
 		}
 		
 		age++;
+		
+		//System.out.println("Chicken Location: " + getLocation());
 	}
 	
 	/** 

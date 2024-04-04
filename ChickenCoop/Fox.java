@@ -6,13 +6,13 @@ import java.util.ArrayList;
 
 public class Fox extends Critter {
 	
-	private int hunger;
+	private int steps; // keeps track of both hunger and nap time
 	private boolean napping;
 	
 	public Fox() {
 		setColor(null);
 		napping = false;
-		hunger = 0;
+		steps = 0;
 	}
 	
 	/** 
@@ -21,10 +21,18 @@ public class Fox extends Critter {
 	 * of eating.
 	 */
 	public ArrayList<Actor> getActors() {
-		ArrayList<Actor> result = new ArrayList<>();
-		int index = 0;
+		ArrayList<Actor> result = null;
+		int index = -1;
+		
+		// after ten turns, the Fox stops napping
+		if (napping && steps == 10) {
+			napping = false;
+			steps = 0;
+		}
+		
 		if (!napping) {
 			result = getGrid().getNeighbors(getLocation());
+			index = 0;
 			while (index < result.size()) {
 				if (!(result.get(index) instanceof Chicken)) {
 					result.remove(index);
@@ -32,8 +40,11 @@ public class Fox extends Critter {
 					index++;
 				}
 			}
+		} else {
+			result = new ArrayList<>();
 		}
 		
+		//System.out.println(result);
 		return result;
 	}
 	
@@ -47,9 +58,10 @@ public class Fox extends Critter {
 		if (actors.size() != 0) {
 			int index = (int) (actors.size() * Math.random());
 			Actor actor = actors.get(index);
-			actor.removeSelfFromGrid();
+			Tombstone tomb = new Tombstone();
+			tomb.putSelfInGrid(getGrid(), actor.getLocation());
 			napping = true;
-			hunger = 0;
+			steps = 0;
 		}
 	}
 	
@@ -61,13 +73,18 @@ public class Fox extends Critter {
 		return getGrid().getEmptyAdjacentLocations(getLocation());
 	}
 	
+	/**
+	 * Finds the direction to the nearest chicken, and selects a move
+	 * location in that direction. 
+	 * @param The locations available to be chosen
+	 * @return the Location where the Fox will move
+	 */
 	public Location selectMoveLocation(ArrayList<Location> locs) {
 		Location next = null;
 		
-		ArrayList<Location> occupied = getGrid().getOccupiedLocations();
-		Location currentLoc = null;
-		
-		double distance = 10000;
+		//if time, edit code for clarity
+		final int LARGE_NUMBER = 10000;
+		double distance = LARGE_NUMBER;
 		Location target = null;
 		int direction = -1;
 		
@@ -76,24 +93,30 @@ public class Fox extends Critter {
 		
 		if (napping) {
 			next = getLocation();
-		} else if (hunger >= 20) {
+		} else if (steps >= 20) {
 			next = null;
 		} else {
+			ArrayList<Location> occupied = getGrid().getOccupiedLocations();
+			//System.out.println("Actors: " + occupied);
 			for (int i = 0; i < occupied.size(); i++) {
-				currentLoc = occupied.get(i);
-				if (getGrid().get(currentLoc) instanceof Chicken &&	
-					distance(currentLoc) < distance) {
-					distance = distance(currentLoc);
-					target = currentLoc;
+				Location actorLoc = occupied.get(i);
+				Actor actor = getGrid().get(actorLoc);
+				if (actor instanceof Chicken && 
+											distanceTo(actorLoc) < distance) {
+					distance = distanceTo(actorLoc);
+					// System.out.println(actorLoc);
+					target = actorLoc;
 					candidates = new ArrayList<>();
 					candidates.add(target);
-				} else if (getGrid().get(currentLoc) instanceof Chicken 
-					&& distance(currentLoc) == distance) {
-					candidates.add(currentLoc);
+				} else if (actor instanceof Chicken && 
+											distanceTo(actorLoc) == distance) {
+					candidates.add(actorLoc);
 				}
 			}
 			
-			if (distance == 10000) {
+			//System.out.println("Move candidates: " + candidates);
+			
+			if (distance == LARGE_NUMBER) {
 				next = super.selectMoveLocation(locs);
 			} else {
 				choice = (int)(candidates.size() * Math.random());
@@ -110,7 +133,8 @@ public class Fox extends Critter {
 		return next;
 	}
 	
-	/** Moves to loc. If loc is null, then the fox is dead, so it is 
+	/** 
+	 * Moves to loc. If loc is null, then the fox is dead, so it is 
 	 * replaced a tombstone. If loc is the same as the current location,
 	 * the fox is either napping or has nowhere to move. Else, the 
 	 * location is valid and is available for moving.
@@ -123,27 +147,37 @@ public class Fox extends Critter {
 		} else if (loc.equals(getLocation())) {
 			if (!napping) {
 				int random = (int)(8 * Math.random());
-				setDirection(getDirection() + random * 
-					Location.HALF_RIGHT);
+				setDirection(getDirection() + random * Location.HALF_RIGHT);
 			}
 		} else {
 			int dir = getLocation().getDirectionToward(loc);
 			setDirection(dir);
+			//System.out.println("Fox Location before move: " + getLocation());
 			moveTo(loc);
 		}
+		steps++;	
 	}
 	
-	/** Calculates the distance from the Fox to another location using 
+	/** 
+	 * Calculates the distance from the Fox to another location using 
 	 * the distance formula.
 	 * @param loc The other location
 	 * @return the distance to the other location
 	 */
-	private double distance(Location loc) {
+	private double distanceTo(Location loc) {
+		//System.out.println("Finding Distance from " + getLocation() + " to " + loc);
 		int x1 = getLocation().getCol();
+		//System.out.println("My col: " + x1);
 		int x2 = loc.getCol();
+		//System.out.println("Their col: " + x2);
 		int y1 = getLocation().getRow();
-		int y2 = loc.getCol();
+		//System.out.println("My row: " + y1);
+		int y2 = loc.getRow();
+		//System.out.println("Their row: " + y2);
 		
-		return Math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2);
+		double distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+		//System.out.println("Distance from " + getLocation() + " to " + loc
+		//	+ ": " + distance);
+		return distance;
 	}
 }
